@@ -1,49 +1,50 @@
-var settings = {};
+let settings = {};
 
-function enqueueDownloading(magnet) {
+async function enqueueDownloading(magnet) {
     const tokenHeaderName = 'X-Transmission-Session-Id';
-    let xhr1 = new XMLHttpRequest();
-    let authHeaderValue = 'Basic ' + btoa(settings.username + ':' + settings.password);
+    const authHeaderValue = 'Basic ' + btoa(settings.username + ':' + settings.password);
 
-    xhr1.open('POST', settings.hostname, true);
-    xhr1.setRequestHeader('Authorization', authHeaderValue)
-    xhr1.setRequestHeader('Content-type', 'application/json');
-    xhr1.onreadystatechange = function () {
-        if (xhr1.readyState == 4) {
-            let xhr2 = new XMLHttpRequest();
+    const session = await fetch(settings.hostname, {
+        method: 'POST',
+        headers: {
+            'Authorization': authHeaderValue,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            'method': 'session-get'
+        })
+    });
 
-            xhr2.open('POST', settings.hostname, true);
-            xhr2.setRequestHeader('Authorization', authHeaderValue)
-            xhr2.setRequestHeader('Content-type', 'application/json');
-            xhr2.setRequestHeader(tokenHeaderName, xhr1.getResponseHeader(tokenHeaderName));
-            xhr2.send(JSON.stringify({
-                'method': 'torrent-add',
-                'arguments': {
-                    'filename': magnet
-                }
-            }));
-        }
-    };
-    xhr1.send(JSON.stringify({
-        'method': 'session-get'
-    }));
+    await fetch(settings.hostname, {
+        headers: {
+            'Authorization': authHeaderValue,
+            'Content-Type': 'application/json',
+            [tokenHeaderName]: session.headers.get('tokenHeaderName')
+        },
+        body: JSON.stringify({
+            'method': 'torrent-add',
+            'arguments': {
+                'filename': magnet
+            }
+        })
+    });
 }
 
 function addLink() {
-    var magnetLinkElement = document.querySelector('a.magnet-link');
+    const magnetLinkElement = document.querySelector('a.magnet-link');
 
-    var downloadLinkElement = document.createElement('a');
+    const downloadLinkElement = document.createElement('a');
     downloadLinkElement.innerHTML = 'Enqueue Downloading';
     downloadLinkElement.id = 'transmission-enqueue-downloading-button'
-    downloadLinkElement.onclick = function (ev) {
-        var successMessageElement = document.createElement('span');
+    downloadLinkElement.addEventListener('click', function () {
+        const successMessageElement = document.createElement('span');
         successMessageElement.innerHTML = 'Enqueued ✓';
         downloadLinkElement.parentNode.replaceChild(successMessageElement, downloadLinkElement);
 
         enqueueDownloading(magnetLinkElement.href);
 
         return false;
-    };
+    });
 
     magnetLinkElement.parentNode.insertBefore(downloadLinkElement, magnetLinkElement.nextSibling);
 }
